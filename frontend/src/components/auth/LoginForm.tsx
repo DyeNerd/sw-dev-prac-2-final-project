@@ -20,16 +20,19 @@ export function LoginForm() {
 
     try {
       const success = await login(email, password);
+      setLoading(false);
+      
       if (success) {
         toast.success('Login successful!');
-        navigate('/products');
+        // Wait for browser to finish rendering
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        navigate('/products', { replace: true });
       } else {
         toast.error('Invalid email or password');
       }
     } catch (error) {
-      toast.error('An error occurred during login');
-    } finally {
       setLoading(false);
+      toast.error('An error occurred during login');
     }
   };
 

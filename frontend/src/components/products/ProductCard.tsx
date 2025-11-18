@@ -29,19 +29,26 @@ export function ProductCard({
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
       <div className="aspect-video bg-gray-200 overflow-hidden">
         <ImageWithFallback
-          src={product.imageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400'}
+          src={product.picture || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400'}
           alt={product.name}
           className="w-full h-full object-cover"
         />
       </div>
       <CardContent className="pt-4">
         <div className="flex items-start justify-between mb-2">
-          <h3>{product.name}</h3>
+          <div className="flex-1">
+            <h3 className="mb-1">{product.name}</h3>
+            <p className="text-sm text-gray-500">SKU: {product.sku}</p>
+          </div>
           <Badge variant={isLowStock ? 'destructive' : 'default'}>
-            Stock: {product.stockQuantity}
+            {product.stockQuantity} {product.unit}
           </Badge>
         </div>
-        <p className="text-gray-600">{product.description}</p>
+        <p className="text-sm text-gray-600 mb-3">{product.description}</p>
+        <div className="flex items-center justify-between text-sm">
+          <Badge variant="outline">{product.category}</Badge>
+          <span className="font-semibold text-blue-600">${product.price.toFixed(2)}</span>
+        </div>
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2 bg-gray-50">
         {role === 'admin' && (
@@ -58,7 +65,7 @@ export function ProductCard({
             <Button
               size="sm"
               variant="destructive"
-              onClick={() => onDelete?.(product.id)}
+              onClick={() => onDelete?.(product._id)}
             >
               <Trash2 className="size-4" />
             </Button>

@@ -44,17 +44,19 @@ export function RegisterForm() {
         formData.role,
         formData.password
       );
+      setLoading(false);
 
       if (success) {
         toast.success('Registration successful!');
-        navigate('/products');
+        // Wait for browser to finish rendering
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        navigate('/products', { replace: true });
       } else {
         toast.error('Email already exists');
       }
     } catch (error) {
-      toast.error('An error occurred during registration');
-    } finally {
       setLoading(false);
+      toast.error('An error occurred during registration');
     }
   };
 

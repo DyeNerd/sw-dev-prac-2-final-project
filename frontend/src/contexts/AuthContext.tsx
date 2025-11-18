@@ -41,15 +41,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const response = await authService.login(email, password);
-
-      // Store token and user
+      
+      // Store token first so we can use it to fetch full user profile
       localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      setUser(response.user);
+      
+      // Fetch full user profile with all fields (including role)
+      const fullUser = await authService.getCurrentUser();
+      
+      // Store full user and update context
+      localStorage.setItem('user', JSON.stringify(fullUser));
+      setUser(fullUser);
 
       return true;
     } catch (error: any) {
-      console.error('Login error:', error);
+      localStorage.removeItem('token');
       toast.error(error.response?.data?.message || 'Invalid email or password');
       return false;
     }
@@ -70,15 +75,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role,
         password
       });
-
-      // Store token and user
+      
+      // Store token first so we can use it to fetch full user profile
       localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      setUser(response.user);
+      
+      // Fetch full user profile with all fields (including role)
+      const fullUser = await authService.getCurrentUser();
+      
+      // Store full user and update context
+      localStorage.setItem('user', JSON.stringify(fullUser));
+      setUser(fullUser);
 
       return true;
     } catch (error: any) {
-      console.error('Registration error:', error);
+      localStorage.removeItem('token');
       toast.error(error.response?.data?.message || 'Registration failed');
       return false;
     }
@@ -97,6 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     </AuthContext.Provider>
   );
 }
+
+// Add displayName for better HMR support
+AuthProvider.displayName = 'AuthProvider';
 
 export function useAuth() {
   const context = useContext(AuthContext);

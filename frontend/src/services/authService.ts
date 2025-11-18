@@ -22,21 +22,25 @@ interface RegisterData {
 
 export const authService = {
   async login(email: string, password: string): Promise<LoginResponse> {
-    const response = await api.post<AuthResponse>('/auth/login', {
+    const response = await api.post<any>('/auth/login', {
       email,
       password,
     });
+    // Backend returns { success, token, _id, name, email } - missing role and tel
+    // We'll fetch full profile separately using the token
     return {
       token: response.data.token,
-      user: response.data.data!
+      user: {} as User // Will be replaced by getCurrentUser() call
     };
   },
 
   async register(data: RegisterData): Promise<LoginResponse> {
-    const response = await api.post<AuthResponse>('/auth/register', data);
+    const response = await api.post<any>('/auth/register', data);
+    // Backend returns { success, token, _id, name, email } - missing role and tel
+    // We'll fetch full profile separately using the token
     return {
       token: response.data.token,
-      user: response.data.data!
+      user: {} as User // Will be replaced by getCurrentUser() call
     };
   },
 
