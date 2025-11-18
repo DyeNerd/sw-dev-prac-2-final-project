@@ -5,7 +5,15 @@ const Product = require("../models/Product");
 // @access  Public
 exports.getProducts = async (req, res, next) => {
   try {
-    const products = await Product.find({ isActive: true });
+    // Admin users get all products (including hidden ones)
+    // Non-admin users only get active products
+    let query = {};
+    
+    if (!req.user || req.user.role !== 'admin') {
+      query.isActive = true;
+    }
+    
+    const products = await Product.find(query);
 
     res.status(200).json({
       success: true,

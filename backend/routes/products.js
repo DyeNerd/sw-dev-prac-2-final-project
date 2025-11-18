@@ -10,7 +10,7 @@ const {
 
 const router = express.Router();
 
-const { protect, authorize } = require("../middleware/auth");
+const { protect, authorize, optionalAuth } = require("../middleware/auth");
 
 /**
  * @swagger
@@ -61,8 +61,10 @@ const { protect, authorize } = require("../middleware/auth");
  * @swagger
  * /products:
  *   get:
- *     summary: Get all products
+ *     summary: Get all products (admins see hidden products too)
  *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of products
@@ -73,7 +75,7 @@ const { protect, authorize } = require("../middleware/auth");
  *               items:
  *                 $ref: '#/components/schemas/Product'
  */
-router.route("/").get(getProducts);
+router.route("/").get(optionalAuth, getProducts);
 
 /**
  * @swagger
