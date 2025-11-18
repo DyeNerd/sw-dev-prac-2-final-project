@@ -29,19 +29,20 @@ export function RequestModal({
   userName
 }: RequestModalProps) {
   const [formData, setFormData] = useState({
-    type: defaultType,
+    type: defaultType as RequestType,
     quantity: 1
   });
 
   useEffect(() => {
     if (request) {
+      const type = request.transactionType === 'stockIn' ? 'Stock In' : 'Stock Out';
       setFormData({
-        type: request.type,
-        quantity: request.quantity
+        type: type as RequestType,
+        quantity: request.itemAmount || 1
       });
     } else {
       setFormData({
-        type: defaultType,
+        type: defaultType as RequestType,
         quantity: 1
       });
     }
@@ -50,7 +51,10 @@ export function RequestModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!product) return;
+    if (!product) {
+      toast.error('Product information not found');
+      return;
+    }
 
     // Validation for Stock Out
     if (formData.type === 'Stock Out') {
@@ -70,10 +74,6 @@ export function RequestModal({
     }
 
     onSave({
-      productId: product.id,
-      productName: product.name,
-      userId,
-      userName,
       type: formData.type,
       quantity: formData.quantity
     });
