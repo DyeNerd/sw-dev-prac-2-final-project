@@ -9,7 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { Pencil, Trash2 } from 'lucide-react';
 import { StockRequest, RequestStatus, Product } from '../../types';
-import { toast } from 'sonner@2.0.3';
+import { requestService } from '../../services/requestService';
+import { productService } from '../../services/productService';
+import { toast } from 'sonner';
+import { Skeleton } from '../ui/skeleton';
 
 interface RequestListProps {
   showAllRequests?: boolean;
@@ -19,42 +22,52 @@ export function RequestList({ showAllRequests = false }: RequestListProps) {
   const { user, role } = useAuth();
   const [requests, setRequests] = useState<StockRequest[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<StockRequest | undefined>();
   const [deleteRequestId, setDeleteRequestId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Load requests from localStorage
-    const savedRequests = localStorage.getItem('requests');
-    let allRequests: StockRequest[] = savedRequests ? JSON.parse(savedRequests) : [];
+    fetchData();
+  }, [showAllRequests]);
 
-    // Filter requests based on user role and view
-    if (!showAllRequests && user) {
-      allRequests = allRequests.filter(r => r.userId === user.id);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch requests based on role and view
+      let requestData: StockRequest[];
+      if (showAllRequests && role === 'admin') {
+        requestData = await requestService.getRequests();
+      } else {
+        requestData = await requestService.getMyRequests();
+      }
+      setRequests(requestData);
+
+      // Fetch products for reference
+      const productData = await productService.getAllProducts();
+      setProducts(productData);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      toast.error('Failed to load requests');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    setRequests(allRequests);
-
-    // Load products
-    const savedProducts = localStorage.getItem('products');
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts));
-    }
-  }, [showAllRequests, user]);
-
-  const handleDeleteRequest = () => {
+  const handleDeleteRequest = async () => {
     if (!deleteRequestId) return;
 
-    const savedRequests = localStorage.getItem('requests');
-    const allRequests: StockRequest[] = savedRequests ? JSON.parse(savedRequests) : [];
-    const updatedRequests = allRequests.filter(r => r.id !== deleteRequestId);
-
-    localStorage.setItem('requests', JSON.stringify(updatedRequests));
-
-    // Update local state
-    setRequests(requests.filter(r => r.id !== deleteRequestId));
-    toast.success('Request deleted successfully');
-    setDeleteRequestId(null);
+    try {
+      await requestService.deleteRequest(deleteRequestId);
+      setRequests(requests.filter(r => r.id !== deleteRequestId));
+      toast.success('Request deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete request:', error);
+      toast.error('Failed to delete request');
+    } finally {
+      setDeleteRequestId(null);
+    }
   };
 
   const handleEditRequest = (request: StockRequest) => {
@@ -62,47 +75,38 @@ export function RequestList({ showAllRequests = false }: RequestListProps) {
     setIsRequestModalOpen(true);
   };
 
-  const handleSaveRequest = (requestData: Omit<StockRequest, 'id' | 'createdDate' | 'status'>) => {
-    const savedRequests = localStorage.getItem('requests');
-    const allRequests: StockRequest[] = savedRequests ? JSON.parse(savedRequests) : [];
+  const handleSaveRequest = async (requestData: any) => {
+    if (!selectedRequest) return;
 
-    if (selectedRequest) {
-      // Edit existing request
-      const updatedRequests = allRequests.map(r =>
-        r.id === selectedRequest.id
-          ? { ...r, ...requestData }
-          : r
-      );
-      localStorage.setItem('requests', JSON.stringify(updatedRequests));
+    try {
+      const updated = await requestService.updateRequest(selectedRequest.id, {
+        quantity: requestData.quantity,
+        type: requestData.type,
+      });
 
-      // Update local state
-      setRequests(requests.map(r =>
-        r.id === selectedRequest.id
-          ? { ...r, ...requestData }
-          : r
-      ));
+      setRequests(requests.map(r => r.id === updated.id ? updated : r));
       toast.success('Request updated successfully');
+      setSelectedRequest(undefined);
+    } catch (error) {
+      console.error('Failed to update request:', error);
+      toast.error('Failed to update request');
     }
-
-    setSelectedRequest(undefined);
   };
 
-  const handleStatusChange = (requestId: string, newStatus: RequestStatus) => {
-    const savedRequests = localStorage.getItem('requests');
-    const allRequests: StockRequest[] = savedRequests ? JSON.parse(savedRequests) : [];
+  const handleStatusChange = async (requestId: string, newStatus: RequestStatus) => {
+    try {
+      const updated = await requestService.updateRequestStatus(requestId, newStatus);
+      setRequests(requests.map(r => r.id === updated.id ? updated : r));
+      toast.success(`Request status updated to ${newStatus}`);
 
-    const updatedRequests = allRequests.map(r =>
-      r.id === requestId ? { ...r, status: newStatus } : r
-    );
-
-    localStorage.setItem('requests', JSON.stringify(updatedRequests));
-
-    // Update local state
-    setRequests(requests.map(r =>
-      r.id === requestId ? { ...r, status: newStatus } : r
-    ));
-
-    toast.success(`Request status updated to ${newStatus}`);
+      // If status changed to approved, refresh to get updated stock counts
+      if (newStatus === 'Approved') {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      toast.error('Failed to update request status');
+    }
   };
 
   const getStatusBadgeVariant = (status: RequestStatus) => {
@@ -119,6 +123,22 @@ export function RequestList({ showAllRequests = false }: RequestListProps) {
   const getProductById = (productId: string) => {
     return products.find(p => p.id === productId);
   };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-64 mt-2" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -187,13 +207,15 @@ export function RequestList({ showAllRequests = false }: RequestListProps) {
                       <TableCell>{request.createdDate}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEditRequest(request)}
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
+                          {request.status === 'Pending' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditRequest(request)}
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="destructive"
@@ -229,7 +251,10 @@ export function RequestList({ showAllRequests = false }: RequestListProps) {
       )}
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteRequestId} onOpenChange={(open) => !open && setDeleteRequestId(null)}>
+      <AlertDialog 
+        open={!!deleteRequestId} 
+        onOpenChange={(open: boolean) => !open && setDeleteRequestId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Request</AlertDialogTitle>

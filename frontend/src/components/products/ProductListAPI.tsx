@@ -6,12 +6,16 @@ import { RequestModal } from '../requests/RequestModal';
 import { Button } from '../ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { Plus } from 'lucide-react';
-import { Product, StockRequest, RequestType } from '../../types';
-import { toast } from 'sonner@2.0.3';
+import { Product, RequestType } from '../../types';
+import { productService } from '../../services/productService';
+import { requestService } from '../../services/requestService';
+import { toast } from 'sonner';
+import { Skeleton } from '../ui/skeleton';
 
 export function ProductList() {
   const { role, user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
@@ -19,45 +23,56 @@ export function ProductList() {
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Load products from localStorage
-    const savedProducts = localStorage.getItem('products');
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts));
-    }
+    fetchProducts();
   }, []);
 
-  const handleSaveProduct = (productData: Omit<Product, 'id'> & { id?: string }) => {
-    let updatedProducts: Product[];
-
-    if (productData.id) {
-      // Edit existing product
-      updatedProducts = products.map(p =>
-        p.id === productData.id ? { ...productData, id: productData.id } : p
-      );
-      toast.success('Product updated successfully');
-    } else {
-      // Add new product
-      const newProduct: Product = {
-        ...productData,
-        id: Date.now().toString()
-      };
-      updatedProducts = [...products, newProduct];
-      toast.success('Product added successfully');
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const data = await productService.getAll();
+      setProducts(data);
+    } catch (error) {
+      console.error('Failed to fetch products:', error);
+      toast.error('Failed to load products');
+    } finally {
+      setLoading(false);
     }
-
-    setProducts(updatedProducts);
-    localStorage.setItem('products', JSON.stringify(updatedProducts));
-    setSelectedProduct(undefined);
   };
 
-  const handleDeleteProduct = () => {
+  const handleSaveProduct = async (productData: Omit<Product, '_id'> & { _id?: string }) => {
+    try {
+      if (productData._id) {
+        // Update existing product
+        const updated = await productService.update(productData._id, productData);
+        setProducts(products.map(p => p._id === updated._id ? updated : p));
+        toast.success('Product updated successfully');
+      } else {
+        // Create new product
+        const { _id, ...createData } = productData;
+        const newProduct = await productService.create(createData);
+        setProducts([...products, newProduct]);
+        toast.success('Product added successfully');
+      }
+      setSelectedProduct(undefined);
+    } catch (error) {
+      console.error('Failed to save product:', error);
+      toast.error('Failed to save product');
+    }
+  };
+
+  const handleDeleteProduct = async () => {
     if (!deleteProductId) return;
 
-    const updatedProducts = products.filter(p => p.id !== deleteProductId);
-    setProducts(updatedProducts);
-    localStorage.setItem('products', JSON.stringify(updatedProducts));
-    toast.success('Product deleted successfully');
-    setDeleteProductId(null);
+    try {
+      await productService.delete(deleteProductId);
+      setProducts(products.filter(p => p._id !== deleteProductId));
+      toast.success('Product deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      toast.error('Failed to delete product');
+    } finally {
+      setDeleteProductId(null);
+    }
   };
 
   const handleRequestStock = (product: Product, type: RequestType) => {
@@ -66,22 +81,33 @@ export function ProductList() {
     setIsRequestModalOpen(true);
   };
 
-  const handleSaveRequest = (requestData: Omit<StockRequest, 'id' | 'createdDate' | 'status'>) => {
-    // Save request to localStorage
-    const savedRequests = localStorage.getItem('requests');
-    const requests: StockRequest[] = savedRequests ? JSON.parse(savedRequests) : [];
-
-    const newRequest: StockRequest = {
-      ...requestData,
-      id: Date.now().toString(),
-      status: 'Pending',
-      createdDate: new Date().toISOString().split('T')[0]
-    };
-
-    requests.push(newRequest);
-    localStorage.setItem('requests', JSON.stringify(requests));
-    toast.success('Stock request submitted successfully');
+  const handleSaveRequest = async (requestData: any) => {
+    try {
+      await requestService.create({
+        product_id: requestData.productId,
+        transactionType: requestData.type === 'Stock In' ? 'stockIn' : 'stockOut',
+        itemAmount: requestData.quantity,
+      });
+      toast.success('Stock request submitted successfully');
+      // Optionally refresh products to get updated stock counts if approved requests affect stock
+      await fetchProducts();
+    } catch (error: any) {
+      console.error('Failed to create request:', error);
+      toast.error(error.response?.data?.message || 'Failed to create request');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} className="h-[300px] rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -105,7 +131,7 @@ export function ProductList() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.map((product) => (
           <ProductCard
-            key={product.id}
+            key={product._id}
             product={product}
             role={role}
             onEdit={(p) => {
@@ -146,12 +172,15 @@ export function ProductList() {
         onSave={handleSaveRequest}
         product={selectedProduct}
         defaultType={requestType}
-        userId={user?.id || ''}
+        userId={user?._id || ''}
         userName={user?.name || ''}
       />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteProductId} onOpenChange={(open) => !open && setDeleteProductId(null)}>
+      <AlertDialog 
+        open={!!deleteProductId} 
+        onOpenChange={(open: boolean) => !open && setDeleteProductId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Product</AlertDialogTitle>
