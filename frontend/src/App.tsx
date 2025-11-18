@@ -1,10 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContextAPI';
+import { AuthProvider } from './contexts/AuthContext';
 import { Navigation } from './components/Navigation';
 import { LoginForm } from './components/auth/LoginForm';
 import { RegisterForm } from './components/auth/RegisterForm';
-import { ProductList } from './components/products/ProductListAPI';
-import { RequestList } from './components/requests/RequestListAPI';
+import { ProductList } from './components/products/ProductList';
+import { RequestList } from './components/requests/RequestList';
 import { Toaster } from './components/ui/sonner';
 
 function App() {

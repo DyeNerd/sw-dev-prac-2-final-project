@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
+import { authService } from '../services/authService';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   user: User | null;
   role: UserRole;
+  loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, tel: string, role: 'staff' | 'admin', password: string) => Promise<boolean>;
   logout: () => void;
@@ -13,30 +16,43 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check for existing session
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const currentUser = await authService.getCurrentUser();
+          setUser(currentUser);
+        } catch (error) {
+          // Token is invalid or expired
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+      }
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock login - check against registered users in localStorage
-    const usersData = localStorage.getItem('users');
-    const users: Array<User & { password: string }> = usersData ? JSON.parse(usersData) : [];
-    
-    const foundUser = users.find(u => u.email === email && u.password === password);
-    
-    if (foundUser) {
-      const { password: _, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('user', JSON.stringify(userWithoutPassword));
+    try {
+      const response = await authService.login(email, password);
+
+      // Store token and user
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      setUser(response.user);
+
       return true;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error(error.response?.data?.message || 'Invalid email or password');
+      return false;
     }
-    
-    return false;
   };
 
   const register = async (
@@ -46,44 +62,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     role: 'staff' | 'admin',
     password: string
   ): Promise<boolean> => {
-    // Mock registration
-    const usersData = localStorage.getItem('users');
-    const users: Array<User & { password: string }> = usersData ? JSON.parse(usersData) : [];
-    
-    // Check if email already exists
-    if (users.some(u => u.email === email)) {
+    try {
+      const response = await authService.register({
+        name,
+        email,
+        tel,
+        role,
+        password
+      });
+
+      // Store token and user
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      setUser(response.user);
+
+      return true;
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast.error(error.response?.data?.message || 'Registration failed');
       return false;
     }
-    
-    const newUser: User & { password: string } = {
-      id: Date.now().toString(),
-      name,
-      email,
-      tel,
-      role,
-      password
-    };
-    
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
-    
-    // Auto login after registration
-    const { password: _, ...userWithoutPassword } = newUser;
-    setUser(userWithoutPassword);
-    localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-    
-    return true;
   };
 
   const logout = () => {
+    authService.logout();
     setUser(null);
-    localStorage.removeItem('user');
   };
 
-  const role: UserRole = user ? user.role : 'guest';
+  const role: UserRole = user?.role || 'guest';
 
   return (
-    <AuthContext.Provider value={{ user, role, login, register, logout }}>
+    <AuthContext.Provider value={{ user, role, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
