@@ -5,12 +5,18 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Product, StockRequest, RequestType } from '../../types';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+
+interface RequestFormData {
+  productId: string;
+  type: RequestType;
+  quantity: number;
+}
 
 interface RequestModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (request: Omit<StockRequest, 'id' | 'createdDate' | 'status'>) => void;
+  onSave: (request: RequestFormData) => void;
   product?: Product;
   request?: StockRequest;
   defaultType?: RequestType;
@@ -74,6 +80,7 @@ export function RequestModal({
     }
 
     onSave({
+      productId: product._id,
       type: formData.type,
       quantity: formData.quantity
     });

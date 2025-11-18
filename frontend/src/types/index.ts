@@ -25,6 +25,7 @@ export interface Product {
 }
 
 export type TransactionType = 'stockIn' | 'stockOut';
+export type RequestType = 'Stock In' | 'Stock Out';
 
 export interface StockRequest {
   _id: string;
