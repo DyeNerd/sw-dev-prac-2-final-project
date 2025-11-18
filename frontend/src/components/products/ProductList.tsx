@@ -5,12 +5,17 @@ import { ProductModal } from './ProductModal';
 import { RequestModal } from '../requests/RequestModal';
 import { Button } from '../ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
-import { Plus } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Checkbox } from '../ui/checkbox';
+import { Label } from '../ui/label';
+import { Plus, ArrowUpDown } from 'lucide-react';
 import { Product, RequestType } from '../../types';
 import { productService } from '../../services/productService';
 import { requestService } from '../../services/requestService';
 import { toast } from 'sonner';
 import { Skeleton } from '../ui/skeleton';
+
+type SortOption = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc';
 
 export function ProductList() {
   const { role, user } = useAuth();
@@ -21,6 +26,8 @@ export function ProductList() {
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
   const [requestType, setRequestType] = useState<RequestType>('Stock In');
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
+  const [sortOption, setSortOption] = useState<SortOption>('name-asc');
+  const [showHidden, setShowHidden] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -75,6 +82,19 @@ export function ProductList() {
     }
   };
 
+  const handleToggleVisibility = async (product: Product) => {
+    try {
+      const updated = await productService.update(product._id, {
+        isActive: !product.isActive
+      });
+      setProducts(products.map(p => p._id === updated._id ? updated : p));
+      toast.success(updated.isActive ? 'Product is now visible' : 'Product is now hidden');
+    } catch (error) {
+      console.error('Failed to toggle product visibility:', error);
+      toast.error('Failed to update product visibility');
+    }
+  };
+
   const handleRequestStock = (product: Product, type: RequestType) => {
     setSelectedProduct(product);
     setRequestType(type);
@@ -97,6 +117,42 @@ export function ProductList() {
     }
   };
 
+  // Sort products based on selected option
+  const sortProducts = (productsToSort: Product[]): Product[] => {
+    const sorted = [...productsToSort];
+    switch (sortOption) {
+      case 'name-asc':
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      case 'name-desc':
+        return sorted.sort((a, b) => b.name.localeCompare(a.name));
+      case 'price-asc':
+        return sorted.sort((a, b) => a.price - b.price);
+      case 'price-desc':
+        return sorted.sort((a, b) => b.price - a.price);
+      default:
+        return sorted;
+    }
+  };
+
+  // Filter products based on visibility
+  const getFilteredProducts = (): Product[] => {
+    let filtered = products;
+    
+    // For non-admin users, always hide inactive products
+    if (role !== 'admin') {
+      filtered = filtered.filter(p => p.isActive !== false);
+    } else {
+      // For admin users, filter based on showHidden checkbox
+      if (!showHidden) {
+        filtered = filtered.filter(p => p.isActive !== false);
+      }
+    }
+    
+    return sortProducts(filtered);
+  };
+
+  const filteredProducts = getFilteredProducts();
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -111,25 +167,58 @@ export function ProductList() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1>Product Inventory</h1>
-          <p className="text-gray-600 mt-1">
-            {role === 'guest' && 'Browse our product catalog'}
-            {role === 'staff' && 'Browse products and create stock requests'}
-            {role === 'admin' && 'Manage products and inventory'}
-          </p>
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1>Product Inventory</h1>
+            <p className="text-gray-600 mt-1">
+              {role === 'guest' && 'Browse our product catalog'}
+              {role === 'staff' && 'Browse products and create stock requests'}
+              {role === 'admin' && 'Manage products and inventory'}
+            </p>
+          </div>
+          {role === 'admin' && (
+            <Button onClick={() => setIsProductModalOpen(true)}>
+              <Plus className="mr-2 size-4" />
+              Add New Product
+            </Button>
+          )}
         </div>
-        {role === 'admin' && (
-          <Button onClick={() => setIsProductModalOpen(true)}>
-            <Plus className="mr-2 size-4" />
-            Add New Product
-          </Button>
-        )}
+
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="size-4 text-gray-500" />
+            <Label htmlFor="sort-select" className="sr-only">Sort by</Label>
+            <Select value={sortOption} onValueChange={(value: SortOption) => setSortOption(value)}>
+              <SelectTrigger id="sort-select" className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                <SelectItem value="price-asc">Price (Low to High)</SelectItem>
+                <SelectItem value="price-desc">Price (High to Low)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {role === 'admin' && (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="show-hidden"
+                checked={showHidden}
+                onCheckedChange={(checked: boolean) => setShowHidden(checked)}
+              />
+              <Label htmlFor="show-hidden" className="text-sm cursor-pointer">
+                Show hidden products
+              </Label>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.map((product) => (
+        {filteredProducts.map((product) => (
           <ProductCard
             key={product._id}
             product={product}
@@ -139,15 +228,20 @@ export function ProductList() {
               setIsProductModalOpen(true);
             }}
             onDelete={(id) => setDeleteProductId(id)}
+            onToggleVisibility={handleToggleVisibility}
             onRequestStockIn={(p) => handleRequestStock(p, 'Stock In')}
             onRequestStockOut={(p) => handleRequestStock(p, 'Stock Out')}
           />
         ))}
       </div>
 
-      {products.length === 0 && (
+      {filteredProducts.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-gray-500">No products available</p>
+          <p className="text-gray-500">
+            {showHidden && role === 'admin' 
+              ? 'No products found' 
+              : 'No products available'}
+          </p>
         </div>
       )}
 
