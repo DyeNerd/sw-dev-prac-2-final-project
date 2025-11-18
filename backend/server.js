@@ -52,6 +52,7 @@ app.use(cookieParser());
 // CORS configuration - Allow production, preview deployments, and localhost
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3001',
   'http://localhost:5173',
   process.env.FRONTEND_URL
 ].filter(Boolean);
@@ -66,8 +67,13 @@ app.use(cors({
       return callback(null, true);
     }
     
+    // Allow all localhost ports (development)
+    if (origin && origin.startsWith('http://localhost:')) {
+      return callback(null, true);
+    }
+    
     // Allow all Vercel preview deployments (*.vercel.app)
-    if (origin.endsWith('.vercel.app')) {
+    if (origin && origin.endsWith('.vercel.app')) {
       return callback(null, true);
     }
     
