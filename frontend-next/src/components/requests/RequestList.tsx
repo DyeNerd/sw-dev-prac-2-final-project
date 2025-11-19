@@ -81,8 +81,17 @@ export function RequestList({ showAllRequests = false }: RequestListProps) {
         transactionType: requestData.type === 'Stock In' ? 'stockIn' : 'stockOut',
       });
 
-      // Update local state without refetching
-      setRequests(requests.map(r => r._id === updated._id ? updated : r));
+      // Update local state, preserving userInfo and productInfo from original
+      setRequests(requests.map(r => {
+        if (r._id === updated._id) {
+          return {
+            ...updated,
+            userInfo: r.userInfo, // Preserve user info
+            productInfo: r.productInfo, // Preserve product info
+          };
+        }
+        return r;
+      }));
       toast.success('Request updated successfully');
       setSelectedRequest(undefined);
       setIsRequestModalOpen(false);
