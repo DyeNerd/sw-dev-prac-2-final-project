@@ -175,9 +175,7 @@ export function RequestList({ showAllRequests = false }: RequestListProps) {
                         <TableCell>{request.itemAmount}</TableCell>
                         {showAllRequests && (
                           <TableCell>
-                            {typeof request.user === 'object' && (request.user as any)?.name 
-                              ? (request.user as any).name 
-                              : request.userInfo?.name || 'Unknown'}
+                            {request.userInfo?.name || 'Unknown'}
                           </TableCell>
                         )}
                         <TableCell>{createdDate}</TableCell>
