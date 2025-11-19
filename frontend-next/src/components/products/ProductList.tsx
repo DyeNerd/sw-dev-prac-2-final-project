@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAppSelector } from '@/store/hooks';
 import { ProductCard } from './ProductCard';
 import { ProductModal } from './ProductModal';
 import { RequestModal } from '../requests/RequestModal';
@@ -9,16 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Checkbox } from '../ui/checkbox';
 import { Label } from '../ui/label';
 import { Plus, ArrowUpDown } from 'lucide-react';
-import { Product, RequestType } from '../../types';
-import { productService } from '../../services/productService';
-import { requestService } from '../../services/requestService';
+import { Product, RequestType } from '@/types';
+import { productService } from '@/services/productService';
+import { requestService } from '@/services/requestService';
 import { toast } from 'sonner';
 import { Skeleton } from '../ui/skeleton';
 
 type SortOption = 'name-asc' | 'name-desc' | 'price-asc' | 'price-desc';
 
 export function ProductList() {
-  const { role, user } = useAuth();
+  const { user } = useAppSelector((state) => state.auth);
+  const role = user?.role || 'guest';
+  
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -293,3 +297,4 @@ export function ProductList() {
     </div>
   );
 }
+

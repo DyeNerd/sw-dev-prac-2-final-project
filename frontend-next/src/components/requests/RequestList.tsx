@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAppSelector } from '@/store/hooks';
 import { RequestModal } from './RequestModal';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -7,9 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { Pencil, Trash2 } from 'lucide-react';
-import { StockRequest, Product } from '../../types';
-import { requestService } from '../../services/requestService';
-import { productService } from '../../services/productService';
+import { StockRequest, Product } from '@/types';
+import { requestService } from '@/services/requestService';
+import { productService } from '@/services/productService';
 import { toast } from 'sonner';
 import { Skeleton } from '../ui/skeleton';
 
@@ -18,7 +20,7 @@ interface RequestListProps {
 }
 
 export function RequestList({ showAllRequests = false }: RequestListProps) {
-  const { user } = useAuth();
+  const { user } = useAppSelector((state) => state.auth);
   const [requests, setRequests] = useState<StockRequest[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +91,6 @@ export function RequestList({ showAllRequests = false }: RequestListProps) {
       toast.error('Failed to update request');
     }
   };
-
 
   const getProductById = (productId: string | any): Product | undefined => {
     // If productId is already an object (populated), return it
@@ -238,3 +239,4 @@ export function RequestList({ showAllRequests = false }: RequestListProps) {
     </div>
   );
 }
+
