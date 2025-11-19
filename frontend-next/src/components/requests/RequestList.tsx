@@ -81,13 +81,15 @@ export function RequestList({ showAllRequests = false }: RequestListProps) {
         transactionType: requestData.type === 'Stock In' ? 'stockIn' : 'stockOut',
       });
 
-      // Update local state, preserving userInfo and productInfo from original
+      // Update local state, preserving user and product info from original
       setRequests(requests.map(r => {
         if (r._id === updated._id) {
           return {
             ...updated,
-            userInfo: r.userInfo, // Preserve user info
-            productInfo: r.productInfo, // Preserve product info
+            user: r.user, // Preserve user (populated from backend)
+            userInfo: r.userInfo, // Preserve userInfo (if exists)
+            product_id: r.product_id, // Preserve product (populated from backend)
+            productInfo: r.productInfo, // Preserve productInfo (if exists)
           };
         }
         return r;
@@ -175,7 +177,10 @@ export function RequestList({ showAllRequests = false }: RequestListProps) {
                         <TableCell>{request.itemAmount}</TableCell>
                         {showAllRequests && (
                           <TableCell>
-                            {request.userInfo?.name || 'Unknown'}
+                            {/* Check userInfo first (preserved after update), then user (from backend) */}
+                            {request.userInfo?.name || 
+                             (typeof request.user === 'object' && (request.user as any)?.name) || 
+                             'Unknown'}
                           </TableCell>
                         )}
                         <TableCell>{createdDate}</TableCell>
