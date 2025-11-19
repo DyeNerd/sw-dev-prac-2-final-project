@@ -108,7 +108,7 @@ FRONTEND_URL=http://localhost:3000
 
 **Frontend**: Create `frontend/.env`
 ```env
-VITE_API_URL=http://localhost:3001/api/v1
+REACT_APP_API_URL=http://localhost:3001/api/v1
 ```
 
 See `ENV_SETUP.md` for detailed instructions.
