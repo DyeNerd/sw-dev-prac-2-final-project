@@ -108,7 +108,9 @@ FRONTEND_URL=http://localhost:3000
 
 **Frontend**: Create `frontend/.env`
 ```env
-REACT_APP_API_URL=http://localhost:3001/api/v1
+NEXT_PUBLIC_API_URL={backend url}/api/v1
+NEXTAUTH_URL={frontend url}
+NEXTAUTH_SECRET={your secret}
 ```
 
 See `ENV_SETUP.md` for detailed instructions.
