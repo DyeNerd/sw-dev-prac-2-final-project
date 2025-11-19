@@ -117,7 +117,7 @@ export function ProductList() {
     }
   };
 
-  // Sort products based on selected option
+  // Sort products
   const sortProducts = (productsToSort: Product[]): Product[] => {
     const sorted = [...productsToSort];
     switch (sortOption) {
@@ -134,7 +134,7 @@ export function ProductList() {
     }
   };
 
-  // Filter products based on visibility
+  // Filter products
   const getFilteredProducts = (): Product[] => {
     let filtered = products;
     
