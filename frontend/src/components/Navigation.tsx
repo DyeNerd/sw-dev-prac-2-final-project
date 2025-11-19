@@ -30,9 +30,12 @@ export function Navigation() {
 
           {/* Navigation Links */}
           <div className="flex items-center gap-6">
-            <Link to="/products" className="hover:opacity-80 transition-opacity">
-              Products
-            </Link>
+            {/* Show Products link only for non-admin users */}
+            {role !== 'admin' && (
+              <Link to="/products" className="hover:opacity-80 transition-opacity">
+                Products
+              </Link>
+            )}
 
             {role === 'staff' && (
               <Link to="/my-requests" className="hover:opacity-80 transition-opacity">
